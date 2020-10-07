@@ -9,31 +9,72 @@
 #ifndef _GRAPH_H_
 #define _GRAPH_H_
 #include <BasicType.h>
+#include <GraphViz.h>
 
 using namespace std;
 
-struct Pattern
+class StrNode
 {
-	DWORD TokenId;
-	DWORD MinPattLen;
+public:
+    DWORD NId;
 
-	DWORD MatchBeg;
-	DWORD MatchEnd;
 };
 
-struct Node 
-{
-    DWORD MinInput;
-	DWORD MaxInput;
 
-	WORD*  NxtTable;
-	Pattern* PtnHdr;
+
+class PtnNode
+{
+public:
+    DWORD NId;
+    map <DWORD, PtnNode*> NxtTable;
+    set <DWORD> OutPut;
+
+    PtnNode (DWORD Id)
+    {
+        NId = Id; 
+    }
 };
 
-struct Graph
+template<class NodeTy> class Graph
 {
-    set <Node *> NodeSet;
-    Node *Root;    
+public:
+    set <NodeTy *> NodeSet;
+    NodeTy *Root;
+
+    Graph ()
+    {
+        Root = AddNode ();
+    }
+
+    inline NodeTy *AddNode ()
+    {
+        DWORD Id = NodeSet.size ();
+        NodeTy *N = new NodeTy (Id);
+        assert (N != NULL);
+
+        NodeSet.insert (N);
+        return N;
+    }
 };
+
+
+
+class PtnGraph: public Graph<PtnNode> 
+{
+};
+
+class PtnGraphViz: public GraphViz <PtnNode, PtnGraph>
+{
+
+public:
+    PtnGraphViz(string GraphName, PtnGraph* Graph):GraphViz<PtnNode, PtnGraph>(GraphName, Graph)
+    {
+    }
+
+    ~PtnGraphViz ()
+    {
+    }
+};
+
 
 #endif 

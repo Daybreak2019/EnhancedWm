@@ -9,6 +9,8 @@
 #ifndef _ENHANCEDWM_H_
 #define _ENHANCEDWM_H_
 #include <BasicType.h> 
+#include <Graph.h> 
+
 
 using namespace std;
 
@@ -30,7 +32,10 @@ public:
         m_Min = 0xffffffff;
         m_Initialized = false;
 
-        LexicalParse (Patterns);
+        CompilePtnGraph (Patterns);
+        
+        PtnGraphViz ptnViz ("PtnGraph", &m_PtnGraph);
+        ptnViz.WiteGraph ();
 
         Compile (Patterns);
 	}
@@ -54,12 +59,15 @@ private:
     T_Result m_Result;
     T_Pid2Pattern m_Patterns;
     T_Pid2String m_StrPatterns;
-    T_Pid2StrIdVec m_StrIdVec;
+    T_Pid2StrIdVec m_StrId2StrVec;
+
+    PtnGraph m_PtnGraph;
 
 
     /* For compiling pattern graph */
     DWORD AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn);
     VOID LexicalParse (T_Pid2Pattern* Patterns);
+    VOID AddOnePtnToGraph (DWORD PtnId, vector <DWORD> *StrVec);
     VOID CompilePtnGraph (T_Pid2Pattern* Patterns);
 
 

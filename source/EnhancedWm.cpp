@@ -24,7 +24,7 @@ DWORD EnHancedWm::AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn)
         StrId = StrIt->second;
     }
 
-    m_StrIdVec[PtdId].push_back (StrId);
+    m_StrId2StrVec[PtdId].push_back (StrId);
     cout<<StrId<<" ";
             
     m_Min = (m_Min > StrPtn.length ())?StrPtn.length ():m_Min;
@@ -62,8 +62,54 @@ VOID EnHancedWm::LexicalParse (T_Pid2Pattern* Patterns)
     DebugLog ("Update MinLen: %u\r\n", m_Min);
 }
 
+VOID EnHancedWm::AddOnePtnToGraph (DWORD PtnId, vector <DWORD> *StrVec)
+{
+    PtnNode* PNode;
+
+	PNode = m_PtnGraph.Root;
+
+    /* query along the graph */
+    auto It = StrVec->begin ();
+	for (; It != StrVec->end (); It++)
+	{
+        DWORD StrId = *It;
+		auto ItN = PNode->NxtTable.find (*It);
+        if (ItN == PNode->NxtTable.end ())
+        {
+            break;
+        }
+
+        PNode = ItN->second;
+	}
+
+	while(It != StrVec->end ())
+	{
+        PtnNode *NewNode = m_PtnGraph.AddNode ();
+		PNode->NxtTable[*It] = NewNode;
+		PNode = NewNode;
+
+        It++;
+	}
+
+	/* add output */
+	PNode->OutPut.insert (PtnId);
+
+    return;
+}
+
+
 VOID EnHancedWm::CompilePtnGraph (T_Pid2Pattern* Patterns)
 {
+    LexicalParse (Patterns);
+
+    for (auto ItPtn = m_StrId2StrVec.begin (); ItPtn != m_StrId2StrVec.end (); ItPtn++)
+	{		
+        vector <DWORD> *StrVec = &(ItPtn->second);
+
+        AddOnePtnToGraph(ItPtn->first, StrVec);
+	}
+
+    return;
 }
 
 
