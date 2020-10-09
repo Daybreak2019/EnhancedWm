@@ -92,7 +92,12 @@ VOID EnHancedWm::AddOnePtnToGraph (DWORD PtnId, vector <DWORD> *StrVec)
 	}
 
 	/* add output */
-	PNode->OutPut.insert (PtnId);
+    if (PNode->OutPut == NULL)
+    {
+        PNode->OutPut = new set<DWORD>;
+        assert (PNode->OutPut != NULL);
+    }
+	PNode->OutPut->insert (PtnId);
 
     return;
 }
@@ -113,11 +118,12 @@ VOID EnHancedWm::CompilePtnGraph (T_Pid2Pattern* Patterns)
 }
 
 
-void EnHancedWm::Compile(T_Pid2Pattern *Patterns) 
+void EnHancedWm::CompileWm() 
 {
-	for (auto ItP = Patterns->begin(), EndP = Patterns->end(); ItP != EndP; ItP++) 
+	for (auto ItP = m_StrPatterns.begin(), EndP = m_StrPatterns.end(); ItP != EndP; ItP++) 
     {
         BYTE *Ptn = (BYTE*)((ItP->second).c_str());
+        
 		for (DWORD Ch = 0; Ch < m_Min - BLOCK_SIZE + 1; ++Ch) 
         {
 			DWORD Block = Ptn[Ch]<<16 | Ptn[Ch+1]<<8 | Ptn[Ch+2];
@@ -160,14 +166,48 @@ void EnHancedWm::Compile(T_Pid2Pattern *Patterns)
 	m_Initialized = true;
 }
 
-T_Result* EnHancedWm::Search(const BYTE* Text, const DWORD Length)
+
+void EnHancedWm::CompileStrGraph() 
+{
+    for (auto It = m_HashTable.begin (); It != m_HashTable.end (); It++)
+    {
+        list<DWORD> *StrIdList = &It->second;
+        for (auto StrIt = StrIdList->begin (), StrEnd = StrIdList->end(); StrIt != StrEnd; ++StrIt) 
+        {
+            DWORD StrI = *StrIt;
+            string Pattern = m_StrPatterns[StrI];
+
+            cout<<StrI<<" -> "<<Pattern<<"\r\n";
+        }               
+    }
+}
+
+
+void EnHancedWm::Compile (T_Pid2Pattern *Patterns)
+{
+    /* COmpile pattern graph */
+    CompilePtnGraph (Patterns);
+    PtnGraphViz ptnViz ("PtnGraph", &m_PtnGraph, &m_StrPatterns);
+    ptnViz.WiteGraph ();
+
+    /* Compile Wm */
+    CompileWm ();
+
+    /* COmpile string graph */
+    CompileStrGraph ();
+
+    return;
+}
+
+
+T_Result* EnHancedWm::SearchStrResult(const BYTE* Text, const DWORD Length)
 {
     if (m_Initialized == false)
     {
         return NULL;
     }
     
-    m_Result.clear ();
+    m_StrResult.clear ();
     
     for (DWORD Pos = m_Min - BLOCK_SIZE; Pos < Length; ++Pos) 
     {
@@ -213,7 +253,7 @@ T_Result* EnHancedWm::Search(const BYTE* Text, const DWORD Length)
 
             if (Index == Length) 
             {
-                m_Result.insert (Pid);
+                m_StrResult.push_back (Pid);
             }
         }
                 
@@ -221,16 +261,32 @@ T_Result* EnHancedWm::Search(const BYTE* Text, const DWORD Length)
     }
 
 
-    for (auto it = m_Result.begin(); it != m_Result.end(); it++)
+    for (auto it = m_StrResult.begin(); it != m_StrResult.end(); it++)
     {
         DWORD Id = *it;
         DebugLog ("Pattern Matching => [%d]%s\r\n", Id, m_Patterns[Id].c_str());
     }
 
 
-	return &m_Result;
+	return &m_StrResult;
 }
 
+T_Result* EnHancedWm::SearchPtnResult (T_Result* StrResult)
+{
+    return NULL;
+}
+
+
+T_Result* EnHancedWm::Search (const BYTE* Text, const DWORD Length)
+{
+    T_Result* StrResult = SearchStrResult(Text, Length);
+    if (!StrResult->size ())
+    {
+        return &m_PtnResult;
+    }
+
+    return SearchPtnResult(StrResult);
+}
 
 
 

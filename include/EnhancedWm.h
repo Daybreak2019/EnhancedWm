@@ -16,12 +16,14 @@ using namespace std;
 
 typedef unordered_map<DWORD, DWORD> T_String2Lengh;
 typedef unordered_map<DWORD, list<DWORD>> T_Hash;
+typedef unordered_map<DWORD, StrGraph*> T_HashG;
+
 typedef unordered_map<DWORD, string> T_Pid2String;
 typedef unordered_map<DWORD, string> T_Pid2Pattern;
 typedef unordered_map<DWORD, vector<DWORD>> T_Pid2StrIdVec;
 typedef unordered_map<string, DWORD> T_StrPtn2Id;
 
-typedef set<DWORD> T_Result;
+typedef vector<DWORD> T_Result;
 
 
 class EnHancedWm
@@ -31,11 +33,6 @@ public:
 	{
         m_Min = 0xffffffff;
         m_Initialized = false;
-
-        CompilePtnGraph (Patterns);
-        
-        PtnGraphViz ptnViz ("PtnGraph", &m_PtnGraph);
-        ptnViz.WiteGraph ();
 
         Compile (Patterns);
 	}
@@ -56,13 +53,22 @@ private:
 	T_Hash m_HashTable;
 
     
-    T_Result m_Result;
+    T_Result m_PtnResult;
+    T_Result m_StrResult;
+    
     T_Pid2Pattern m_Patterns;
     T_Pid2String m_StrPatterns;
     T_Pid2StrIdVec m_StrId2StrVec;
 
     PtnGraph m_PtnGraph;
 
+private:
+
+    /********************************************************************************
+    *
+    *   Compile
+    *
+    *********************************************************************************/
 
     /* For compiling pattern graph */
     DWORD AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn);
@@ -72,11 +78,22 @@ private:
 
 
     /* For compiling string graph */
-    VOID CompileStrGraph (T_Pid2String* Patterns);
+    VOID CompileStrGraph ();
+   
+    /* For compiling Wm */
+    VOID CompileWm();
 
-    
-
+    /* Compile Entry */
     VOID Compile(T_Pid2Pattern* Patterns);
+
+
+    /********************************************************************************
+    *
+    *   Search
+    *
+    *********************************************************************************/
+    T_Result* SearchStrResult (const BYTE* Text, const DWORD Length);
+    T_Result* SearchPtnResult (T_Result* StrResult);
 
 };
 

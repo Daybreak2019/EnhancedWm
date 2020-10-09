@@ -16,7 +16,21 @@ using namespace std;
 class StrNode
 {
 public:
-    DWORD NId;
+    map <BYTE, StrNode*> NxtTable;
+    set <DWORD> *OutPut;
+
+    StrNode ()
+    {
+        OutPut = NULL; 
+    }
+
+    ~StrNode ()
+    {
+        if (OutPut)
+        {
+            delete OutPut;
+        }
+    }
 
 };
 
@@ -27,11 +41,20 @@ class PtnNode
 public:
     DWORD NId;
     map <DWORD, PtnNode*> NxtTable;
-    set <DWORD> OutPut;
+    set <DWORD> *OutPut;
 
     PtnNode (DWORD Id)
     {
-        NId = Id; 
+        NId = Id;
+        OutPut = NULL;
+    }
+
+    ~PtnNode ()
+    {
+        if (OutPut)
+        {
+            delete OutPut;
+        }
     }
 };
 
@@ -44,6 +67,14 @@ public:
     Graph ()
     {
         Root = AddNode ();
+    }
+
+    ~Graph ()
+    {
+        for (auto It = NodeSet.begin (); It != NodeSet.end (); It++)
+        {
+            delete (*It);
+        }
     }
 
     inline NodeTy *AddNode ()
@@ -63,11 +94,17 @@ class PtnGraph: public Graph<PtnNode>
 {
 };
 
+class StrGraph: public Graph<StrNode> 
+{
+};
+
+
 class PtnGraphViz: public GraphViz <PtnNode, PtnGraph>
 {
 
 public:
-    PtnGraphViz(string GraphName, PtnGraph* Graph):GraphViz<PtnNode, PtnGraph>(GraphName, Graph)
+    PtnGraphViz(string GraphName, PtnGraph* Graph, unordered_map<DWORD, string> *StrPtn):
+        GraphViz<PtnNode, PtnGraph>(GraphName, Graph, StrPtn)
     {
     }
 

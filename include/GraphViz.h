@@ -5,8 +5,8 @@
  * History:
    <1> 10/07/2019 , create
 ************************************************************/
-#ifndef _DGVIZ_H_
-#define _DGVIZ_H_
+#ifndef _GRAPHVIZ_H_
+#define _GRAPHVIZ_H_
 #include <fstream>
 
 using namespace std;
@@ -17,6 +17,7 @@ protected:
     FILE  *m_File;
     GraphType *m_Graph;
     string m_GraphName;
+    unordered_map<DWORD, string> *m_StrPtn;
 
 protected:
     inline VOID WriteHeader (string GraphName) 
@@ -31,10 +32,10 @@ protected:
     { 
         string str = "N" + to_string (Node->NId);
 
-        if (Node->OutPut.size ())
+        if (Node->OutPut != NULL)
         {
             str += ", Out: ";
-            for (auto It = Node->OutPut.begin (); It != Node->OutPut.end (); It++)
+            for (auto It = Node->OutPut->begin (); It != Node->OutPut->end (); It++)
             {
                 str += to_string (*It) + " ";
             }
@@ -46,7 +47,7 @@ protected:
     
     virtual inline string GetNodeAttributes(NodeTy *Node) 
     {
-        if (Node->OutPut.size ())
+        if (Node->OutPut != NULL)
         {
             return "color=red";
         }
@@ -56,11 +57,15 @@ protected:
         }
     }
 
-    virtual inline string GetEdgeLabel(NodeTy *Src, NodeTy *Dst) 
+    virtual inline string GetEdgeLabel(DWORD Label) 
     {
-        string str;
-
-        return str;
+        auto It = m_StrPtn->find (Label);
+        if (It == m_StrPtn->end ())
+        {
+            return "";
+        }
+        
+        return It->second;
     }
 
     virtual inline string GetEdgeAttributes(NodeTy *Src, NodeTy *Dst) 
@@ -91,7 +96,7 @@ protected:
 
         str = "\tN" + to_string (SrcId) + " -> " + "N" + to_string (DstId) +
               "[" + GetEdgeAttributes (Src, Dst) + ",label=\"{" +
-              to_string (Label) + "}\"];";           
+              GetEdgeLabel (Label) + "}\"];";           
 
         fprintf(m_File, "%s\n", str.c_str());
         return; 
@@ -99,7 +104,7 @@ protected:
     }
 
 public:
-    GraphViz(string GraphName, GraphType   * Graph) 
+    GraphViz(string GraphName, GraphType   * Graph, unordered_map<DWORD, string> *StrPtn) 
     {
         m_GraphName = GraphName;
         
@@ -107,7 +112,8 @@ public:
         m_File  =fopen (GraphName.c_str(), "w");
         assert (m_File != NULL);
 
-        m_Graph = Graph;
+        m_Graph  = Graph;
+        m_StrPtn = StrPtn;
     }
 
     ~GraphViz()
