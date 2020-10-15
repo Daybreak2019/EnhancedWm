@@ -8,7 +8,7 @@
 #include <EnhancedWm.h>
 #include <Log.h>
 
-DWORD EnHancedWm::AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn)
+DWORD EnHancedWm::AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn, DWORD Depth)
 {
     DWORD StrId;
             
@@ -25,7 +25,16 @@ DWORD EnHancedWm::AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn)
     }
 
     m_StrId2StrVec[PtdId].push_back (StrId);
-    cout<<StrId<<" ";
+    auto Dit = m_StrId2Depth.find (StrId);
+    if (Dit == m_StrId2Depth.end ())
+    {
+        m_StrId2Depth[StrId] = (1 << Depth);
+    }
+    else
+    {
+        Dit->second |= (1 << Depth);
+    }
+    cout<<StrId<<"(D "<<m_StrId2Depth[StrId]<<") ";
             
     m_Min = (m_Min > StrPtn.length ())?StrPtn.length ():m_Min;
 
@@ -48,13 +57,15 @@ VOID EnHancedWm::LexicalParse (T_Pid2Pattern* Patterns)
 
         string Temp = Ptn + ".*";
         size_t Pos = Temp.find(".*");
+        DWORD Depth = 0;
         while(Pos != Temp.npos)
         {
             string StrPtn = Temp.substr(0, Pos);
-            AddStrPtn (StrPtn2Id, it->first, StrPtn);
+            AddStrPtn (StrPtn2Id, it->first, StrPtn, Depth);
             
             Temp = Temp.substr(Pos+2, Temp.size());
             Pos = Temp.find(".*");
+            Depth++;
         }
         cout<<"\r\n";
     }
@@ -166,20 +177,70 @@ void EnHancedWm::CompileWm()
 	m_Initialized = true;
 }
 
+VOID EnHancedWm::AddOneStrToGraph (StrGraph *SG, DWORD StrId, char *String)
+{
+    StrNode* SNode;
+
+	SNode = SG->Root;
+
+    /* query along the graph */
+    BYTE C;
+    DWORD Index = 0;
+	while ((C = String[Index]) != 0)
+	{
+		auto ItN = SNode->NxtTable.find (C);
+        if (ItN == SNode->NxtTable.end ())
+        {
+            break;
+        }
+
+        SNode = ItN->second;
+        Index++;
+	}
+
+	while((C = String[Index]) != 0)
+	{
+        StrNode *NewNode = SG->AddNode ();
+		SNode->NxtTable[C] = NewNode;
+		SNode = NewNode;
+
+        Index++;
+	}
+
+	/* add output */
+    if (SNode->OutPut == NULL)
+    {
+        SNode->OutPut = new set<DWORD>;
+        assert (SNode->OutPut != NULL);
+    }
+	SNode->OutPut->insert (StrId);
+
+    return;
+}
+
 
 void EnHancedWm::CompileStrGraph() 
 {
     for (auto It = m_HashTable.begin (); It != m_HashTable.end (); It++)
     {
         list<DWORD> *StrIdList = &It->second;
+        StrGraph *SG = new StrGraph ();
+        assert (SG != NULL);
+        
         for (auto StrIt = StrIdList->begin (), StrEnd = StrIdList->end(); StrIt != StrEnd; ++StrIt) 
         {
-            DWORD StrI = *StrIt;
-            string Pattern = m_StrPatterns[StrI];
+            DWORD StrId = *StrIt;
+            string Pattern = m_StrPatterns[StrId];
 
-            cout<<StrI<<" -> "<<Pattern<<"\r\n";
-        }               
+            cout<<StrId<<" -> "<<Pattern<<"\r\n";
+            AddOneStrToGraph (SG, StrId, (char *)Pattern.c_str());
+        }
+
+        /* hash to graph */
+        m_HashGraph[It->first] = SG;
     }
+
+    m_HashTable.clear ();
 }
 
 
@@ -227,53 +288,93 @@ T_Result* EnHancedWm::SearchStrResult(const BYTE* Text, const DWORD Length)
         }
 
 
-        /* hit */
-        auto PtSet = m_HashTable.at(block);
-        for (auto PIt = PtSet.begin(), PEnd = PtSet.end(); PIt != PEnd; ++PIt) 
-        {
-            DWORD Pid = *PIt;
-            string *Pattern = &(m_Patterns[Pid]);
+        /* hit, match in graph */
+        StrGraph *SG = m_HashGraph.at(block);
+        StrNode *SN  = SG->Root;
 
-            DWORD CurPos = Pos - m_Min + BLOCK_SIZE;
-            DWORD Index = 0;
-
-            BYTE* Pt = (BYTE*)Pattern->c_str();
-            DWORD Length = Pattern->length();
-
-            const BYTE* Tg = Text + CurPos;
-            while (Index < Length) 
+        WORD Start = (WORD)(Pos - (m_Min - BLOCK_SIZE));
+        WORD End   = Start;
+        BYTE* Tg = (BYTE *)(Text + Start);
+        cout<<Tg<<"\r\n";
+        auto ItN = SN->NxtTable.find (*Tg);
+    	while (ItN != SN->NxtTable.end ())
+    	{
+    		SN = ItN->second;
+            if (SN->OutPut)
             {
-                if (*Pt++ != *Tg++) 
-                {
-                    break;
-                }
-                
-                ++Index;
+                m_StrResult.push_back (M_Result (*(SN->OutPut->begin()), Start, End));
             }
+            Tg++;
+            End++;
 
-            if (Index == Length) 
-            {
-                m_StrResult.push_back (Pid);
-            }
-        }
+            ItN = SN->NxtTable.find (*Tg);
+    	}
                 
         Pos += m_AuxShiftTable.at(block) - 1;
     }
-
-
-    for (auto it = m_StrResult.begin(); it != m_StrResult.end(); it++)
-    {
-        DWORD Id = *it;
-        DebugLog ("Pattern Matching => [%d]%s\r\n", Id, m_Patterns[Id].c_str());
-    }
-
 
 	return &m_StrResult;
 }
 
 T_Result* EnHancedWm::SearchPtnResult (T_Result* StrResult)
 {
-    return NULL;
+    T_MatchQueue MQ;
+    MQ[0].push_back (QueueNode (m_PtnGraph.Root, 0, 0));
+
+    for (auto It = StrResult->begin (); It != StrResult->end (); It++)
+    {
+        M_Result *MR = &(*It);
+        DWORD StrId  = MR->ID;
+        DWORD Depth  = m_StrId2Depth[StrId];
+        DebugLog ("String Matching => [%d][D%X](%u, %u)%s\r\n", StrId, Depth, MR->Start, MR->End, m_StrPatterns[StrId].c_str());
+
+        DWORD Qno = 0;
+        for (; Depth != 0; Qno++, Depth = Depth>>1)
+        {
+            if (!(Depth & 1))
+            {
+                continue;
+            }
+
+            auto Mqit = MQ.find (Qno);
+            if (Mqit == MQ.end())
+            {
+                continue;
+            }
+
+            vector<QueueNode> *Queue = &(Mqit->second);
+            for (auto Qt = Queue->begin (); Qt != Queue->end(); Qt++)
+            {
+                /* check position */
+                if (MR->Start < Qt->End)
+                {
+                    continue;
+                }
+                
+                PtnNode *PN = Qt->PN;
+                auto NxtIt = PN->NxtTable.find (StrId);
+                if (NxtIt != PN->NxtTable.end ())
+                {
+                    PtnNode *NxtN = NxtIt->second;
+                    if (NxtN->OutPut != NULL)
+                    {
+                        m_PtnResult.push_back (M_Result(*(NxtN->OutPut->begin()), Qt->Start, MR->End));
+                    }
+
+                    if (Qno == 0)
+                    {
+                        MQ[Qno+1].push_back (QueueNode(NxtN, MR->Start, MR->End));
+                    }
+                    else
+                    {
+                        MQ[Qno+1].push_back (QueueNode(NxtN, Qt->Start, MR->End));
+                    }         
+                }
+            }
+        }    
+    }
+    
+    return &m_PtnResult;
 }
 
 

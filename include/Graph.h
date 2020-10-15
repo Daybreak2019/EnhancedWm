@@ -16,11 +16,13 @@ using namespace std;
 class StrNode
 {
 public:
+    DWORD NId;
     map <BYTE, StrNode*> NxtTable;
     set <DWORD> *OutPut;
 
-    StrNode ()
+    StrNode (DWORD Id)
     {
+        NId = Id;
         OutPut = NULL; 
     }
 

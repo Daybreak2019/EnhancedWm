@@ -22,8 +22,42 @@ typedef unordered_map<DWORD, string> T_Pid2String;
 typedef unordered_map<DWORD, string> T_Pid2Pattern;
 typedef unordered_map<DWORD, vector<DWORD>> T_Pid2StrIdVec;
 typedef unordered_map<string, DWORD> T_StrPtn2Id;
+typedef unordered_map<DWORD, DWORD> T_StrPtnDepth;
 
-typedef vector<DWORD> T_Result;
+
+
+struct M_Result
+{
+    WORD Start;
+    WORD End;
+    DWORD ID;
+
+    M_Result (DWORD id, WORD s, WORD e)
+    {
+        ID    = id;
+        Start = s;
+        End   = e;        
+    }
+};
+typedef vector <M_Result> T_Result;
+
+
+struct QueueNode
+{
+    PtnNode* PN;
+    WORD Start;
+    WORD End;
+
+    QueueNode (PtnNode* n, WORD s, WORD e)
+    {
+        PN    = n;
+        Start = s;
+        End   = e;
+    }
+};
+
+typedef unordered_map<DWORD, vector<QueueNode>> T_MatchQueue;
+
 
 
 class EnHancedWm
@@ -51,6 +85,7 @@ private:
 	T_String2Lengh m_ShiftTable;
 	T_String2Lengh m_AuxShiftTable;
 	T_Hash m_HashTable;
+    T_HashG m_HashGraph;
 
     
     T_Result m_PtnResult;
@@ -59,6 +94,7 @@ private:
     T_Pid2Pattern m_Patterns;
     T_Pid2String m_StrPatterns;
     T_Pid2StrIdVec m_StrId2StrVec;
+    T_StrPtnDepth m_StrId2Depth;
 
     PtnGraph m_PtnGraph;
 
@@ -71,13 +107,14 @@ private:
     *********************************************************************************/
 
     /* For compiling pattern graph */
-    DWORD AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn);
+    DWORD AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn, DWORD Depth);
     VOID LexicalParse (T_Pid2Pattern* Patterns);
     VOID AddOnePtnToGraph (DWORD PtnId, vector <DWORD> *StrVec);
     VOID CompilePtnGraph (T_Pid2Pattern* Patterns);
 
 
     /* For compiling string graph */
+    VOID AddOneStrToGraph (StrGraph *SG, DWORD StrId, char *String);
     VOID CompileStrGraph ();
    
     /* For compiling Wm */
