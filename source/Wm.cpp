@@ -56,7 +56,7 @@ void Wm::Compile(T_Pid2String *Patterns)
 	m_Initialized = true;
 }
 
-T_Result* Wm::Search(const BYTE* Text, const DWORD Length)
+T_WmResult* Wm::Search(const BYTE* Text, const DWORD Length)
 {
     if (m_Initialized == false)
     {
@@ -109,44 +109,15 @@ T_Result* Wm::Search(const BYTE* Text, const DWORD Length)
 
             if (Index == Length) 
             {
-                m_Result.insert (Pid);
+                //m_Result.push_back (Pid);
             }
         }
                 
         Pos += m_AuxShiftTable.at(block) - 1;
     }
 
-
-    for (auto it = m_Result.begin(); it != m_Result.end(); it++)
-    {
-        DWORD Id = *it;
-        DebugLog ("Pattern Matching => [%d]%s\r\n", Id, m_Patterns[Id].c_str());
-    }
-
-
 	return &m_Result;
 }
 
 
-VOID WmTest ()
-{
-    T_Pid2String Patterns;
-    Patterns[1] = "www.liwen.cn";
-    Patterns[2] = "helloworld";
-    Patterns[3] = "facebook";
-    Patterns[4] = "zoom space";
-
-    Wm WmTest (&Patterns);
-
-    const char*  Data = "123456666www.liwen.cn----helloworldgotoschoolfacebook";
-    T_Result *Res = WmTest.Search ((BYTE*)Data, strlen(Data));
-    assert (Res != NULL);
-
-    assert (Res->find (1) != Res->end());
-    assert (Res->find (2) != Res->end());
-    assert (Res->find (3) != Res->end());
-
-    cout<<"Wm Test ok!!!\r\n";
-        
-}
 

@@ -16,7 +16,7 @@ typedef unordered_map<DWORD, DWORD> T_String2Lengh;
 typedef unordered_map<DWORD, list<DWORD>> T_Hash;
 
 typedef unordered_map<DWORD, string> T_Pid2String;
-typedef set<DWORD> T_Result;
+typedef vector<DWORD> T_WmResult;
 
 
 class Wm 
@@ -37,7 +37,7 @@ public:
 	}
     
 	
-	T_Result* Search(const BYTE* Text, const DWORD Length);
+	T_WmResult* Search(const BYTE* Text, const DWORD Length);
 
     DWORD WmTest ();
 
@@ -53,7 +53,7 @@ private:
 	T_Hash m_HashTable;
 
     
-    T_Result m_Result;
+    T_WmResult m_Result;
     T_Pid2String m_Patterns;
 
     inline VOID InitPatterns (T_Pid2String* Patterns)
@@ -69,6 +69,9 @@ private:
                 m_Min = Len;
             }
         }
+
+        assert (m_Min > 3);
+        printf ("m_Min = %d \r\n", m_Min);
 
         return;
     }

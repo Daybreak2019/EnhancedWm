@@ -34,9 +34,10 @@ DWORD EnHancedWm::AddStrPtn (T_StrPtn2Id &StrPtn2Id, DWORD PtdId, string StrPtn,
     {
         Dit->second |= (1 << Depth);
     }
-    cout<<StrId<<"(D "<<m_StrId2Depth[StrId]<<") ";
+    //cout<<StrId<<"(D "<<m_StrId2Depth[StrId]<<") ";
             
     m_Min = (m_Min > StrPtn.length ())?StrPtn.length ():m_Min;
+    assert (m_Min > 3);
 
     return StrId;
 }
@@ -50,7 +51,7 @@ VOID EnHancedWm::LexicalParse (T_Pid2Pattern* Patterns)
     for (auto it = Patterns->begin(), end = Patterns->end(); it != end; it++)
     {
         string Ptn = it->second;
-        cout<<"Lexical Parse: ["<<it->first<<"]"<<Ptn<<": ";
+        //cout<<"Lexical Parse: ["<<it->first<<"]"<<Ptn<<": ";
 
         char *Strc = new char[strlen(Ptn.c_str())+1];
         strcpy(Strc, Ptn.c_str());
@@ -67,10 +68,10 @@ VOID EnHancedWm::LexicalParse (T_Pid2Pattern* Patterns)
             Pos = Temp.find(".*");
             Depth++;
         }
-        cout<<"\r\n";
+        //cout<<"\r\n";
     }
 
-    DebugLog ("Update MinLen: %u\r\n", m_Min);
+    //DebugLog ("Update MinLen: %u\r\n", m_Min);
 }
 
 VOID EnHancedWm::AddOnePtnToGraph (DWORD PtnId, vector <DWORD> *StrVec)
@@ -131,6 +132,7 @@ VOID EnHancedWm::CompilePtnGraph (T_Pid2Pattern* Patterns)
 
 void EnHancedWm::CompileWm() 
 {
+    cout<<m_StrPatterns.size()<<", "<<m_Min<<endl;
 	for (auto ItP = m_StrPatterns.begin(), EndP = m_StrPatterns.end(); ItP != EndP; ItP++) 
     {
         BYTE *Ptn = (BYTE*)((ItP->second).c_str());
@@ -232,7 +234,7 @@ void EnHancedWm::CompileStrGraph()
             DWORD StrId = *StrIt;
             string Pattern = m_StrPatterns[StrId];
 
-            cout<<StrId<<" -> "<<Pattern<<"\r\n";
+            //cout<<StrId<<" -> "<<Pattern<<"\r\n";
             AddOneStrToGraph (SG, StrId, (char *)Pattern.c_str());
         }
 
@@ -247,14 +249,17 @@ void EnHancedWm::CompileStrGraph()
 void EnHancedWm::Compile (T_Pid2Pattern *Patterns)
 {
     /* COmpile pattern graph */
+    cout<<"CompilePtnGraph"<<endl;
     CompilePtnGraph (Patterns);
-    PtnGraphViz ptnViz ("PtnGraph", &m_PtnGraph, &m_StrPatterns);
-    ptnViz.WiteGraph ();
+    //PtnGraphViz ptnViz ("PtnGraph", &m_PtnGraph, &m_StrPatterns);
+    //ptnViz.WiteGraph ();
 
     /* Compile Wm */
+    cout<<"CompileWm"<<endl;
     CompileWm ();
 
     /* COmpile string graph */
+    cout<<"CompileStrGraph"<<endl;
     CompileStrGraph ();
 
     return;
@@ -295,7 +300,7 @@ T_Result* EnHancedWm::SearchStrResult(const BYTE* Text, const DWORD Length)
         WORD Start = (WORD)(Pos - (m_Min - BLOCK_SIZE));
         WORD End   = Start;
         BYTE* Tg = (BYTE *)(Text + Start);
-        cout<<Tg<<"\r\n";
+        //cout<<Tg<<"\r\n";
         auto ItN = SN->NxtTable.find (*Tg);
     	while (ItN != SN->NxtTable.end ())
     	{
@@ -326,7 +331,7 @@ T_Result* EnHancedWm::SearchPtnResult (T_Result* StrResult)
         M_Result *MR = &(*It);
         DWORD StrId  = MR->ID;
         DWORD Depth  = m_StrId2Depth[StrId];
-        DebugLog ("String Matching => [%d][D%X](%u, %u)%s\r\n", StrId, Depth, MR->Start, MR->End, m_StrPatterns[StrId].c_str());
+        //DebugLog ("String Matching => [%d][D%X](%u, %u)%s\r\n", StrId, Depth, MR->Start, MR->End, m_StrPatterns[StrId].c_str());
 
         DWORD Qno = 0;
         for (; Depth != 0; Qno++, Depth = Depth>>1)
@@ -355,20 +360,14 @@ T_Result* EnHancedWm::SearchPtnResult (T_Result* StrResult)
                 auto NxtIt = PN->NxtTable.find (StrId);
                 if (NxtIt != PN->NxtTable.end ())
                 {
+                    DWORD Start = (Qno == 0)?(MR->Start):(Qt->Start);
                     PtnNode *NxtN = NxtIt->second;
                     if (NxtN->OutPut != NULL)
                     {
-                        m_PtnResult.push_back (M_Result(*(NxtN->OutPut->begin()), Qt->Start, MR->End));
+                        m_PtnResult.push_back (M_Result(*(NxtN->OutPut->begin()), Start, MR->End));
                     }
 
-                    if (Qno == 0)
-                    {
-                        MQ[Qno+1].push_back (QueueNode(NxtN, MR->Start, MR->End));
-                    }
-                    else
-                    {
-                        MQ[Qno+1].push_back (QueueNode(NxtN, Qt->Start, MR->End));
-                    }         
+                    MQ[Qno+1].push_back (QueueNode(NxtN, Start, MR->End));       
                 }
             }
         }    
@@ -381,6 +380,7 @@ T_Result* EnHancedWm::SearchPtnResult (T_Result* StrResult)
 T_Result* EnHancedWm::Search (const BYTE* Text, const DWORD Length)
 {
     T_Result* StrResult = SearchStrResult(Text, Length);
+    
     if (!StrResult->size ())
     {
         return &m_PtnResult;
